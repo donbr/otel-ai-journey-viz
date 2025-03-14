@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, AlertTriangle, ArrowRight, Database, Check, Zap, Code, Eye, Server, Search, Wrench, GitBranch } from 'lucide-react';
 import * as d3 from 'd3';
 
-const OtelAIJourneyVisualization = () => {
+const EnhancedOtelViz = () => {
   const [activeStage, setActiveStage] = useState(0);
   const [expandedStages, setExpandedStages] = useState([]);
   const [showCode, setShowCode] = useState(false);
@@ -202,8 +202,9 @@ current_span.add_event("model_response_received", {
     d3.select(flowChartRef.current).selectAll("*").remove();
     
     const width = flowChartRef.current.clientWidth;
-    const height = 200;
-    const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+    const height = 220; // Increased height for better text fit
+    const margin = { top: 20, right: 40, bottom: 40, left: 40 }; // Increased margins
+    const innerWidth = width - margin.left - margin.right;
     
     const currentStage = stages[activeStage];
     
@@ -214,13 +215,17 @@ current_span.add_event("model_response_received", {
       .attr("height", height)
       .attr("viewBox", `0 0 ${width} ${height}`);
     
-    // Define the data for the flow
-    const flowData = currentStage.steps.map((step, i) => ({
-      id: i,
-      text: step,
-      x: margin.left + (width - margin.left - margin.right) * (i / (currentStage.steps.length - 1 || 1)),
-      y: height / 2
-    }));
+    // Define the data for the flow with more careful spacing
+    const flowData = currentStage.steps.map((step, i) => {
+      // Create more space between nodes for text
+      const x = margin.left + (innerWidth * (i / (currentStage.steps.length - 1 || 1)));
+      return {
+        id: i,
+        text: step,
+        x: x,
+        y: height / 2 - 20 // Raised position for better text fit below
+      };
+    });
     
     // Draw connections between steps
     const lineGenerator = d3.line()
@@ -282,14 +287,44 @@ current_span.add_event("model_response_received", {
       .attr("font-weight", "bold")
       .text(d => d.id + 1);
     
-    // Add step labels below
-    nodes.append("text")
+    // Create a group for the step labels below
+    const labelGroups = nodes.append("g")
+      .attr("class", "label-group")
+      .attr("transform", "translate(0, 30)"); // Position labels below circles
+    
+    // Add step labels with better text wrapping
+    labelGroups.append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 40)
-      .attr("font-size", "12px")
+      .attr("font-size", "11px") // Smaller font
       .attr("fill", "#4B5563")
-      .text(d => d.text)
-      .call(wrap, 100);
+      .each(function(d) {
+        const text = d3.select(this);
+        const words = d.text.split(/\s+/);
+        let line = "";
+        let lineNumber = 0;
+        const lineHeight = 1.2; // Line height
+        let tspan = text.append("tspan")
+          .attr("x", 0)
+          .attr("dy", 0);
+        
+        // Manually wrap text with appropriate widths for each node
+        // This ensures full node text is visible
+        for (let i = 0; i < words.length; i++) {
+          const testLine = line + words[i] + " ";
+          // Create a new line if line gets too long or at key breakpoints
+          if ((i > 0 && (i % 2 === 0)) || i === words.length - 1) {
+            tspan.text(line);
+            line = words[i] + " ";
+            tspan = text.append("tspan")
+              .attr("x", 0)
+              .attr("dy", lineHeight + "em")
+              .text(line);
+            lineNumber++;
+          } else {
+            line = testLine;
+          }
+        }
+      });
   };
   
   // Helper function to wrap text
@@ -392,7 +427,7 @@ current_span.add_event("model_response_received", {
         {/* Flow chart visualization */}
         <div className="mt-6 mb-6 p-4 bg-gray-50 rounded-lg">
           <h3 className="text-lg font-medium mb-4 text-center">Implementation Flow</h3>
-          <div ref={flowChartRef} className="w-full h-auto"></div>
+          <div ref={flowChartRef} className="w-full h-auto" style={{ minHeight: "240px" }}></div>
         </div>
         
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -670,4 +705,4 @@ current_span.add_event("model_response_received", {
   );
 };
 
-export default OtelAIJourneyVisualization;
+export default EnhancedOtelViz;
